@@ -346,6 +346,23 @@ export class Message {
         return msg;
     }
 
+
+    /**
+     * Create a "RunScriptOnServerWithParam" message.
+     *
+     * @param {string} sourceCode The complete script that is to be executed on the server. (or :scriptname to call an existing serverside script)
+     * @param {string[]} scriptParams An (optional) Array of parameter e.g ["key1", "value1", "key2", value2]
+     */
+    public static runScriptOnServerWithParam(sourceCode: string, scriptParams: string[]): Message {
+        const msg = new Message();
+        msg.add([0, 0, 0, 0, 0, 0, 0, 0, Operation.COMOperation]);
+        msg.addInt32(ParameterName.Index, COMOperation.RunScriptOnServer);
+        msg.addString(ParameterName.Parameter, sourceCode);
+        msg.addStringList(ParameterName.Something, scriptParams);
+
+        return msg;
+    }
+
     /**
      * Create a "callClassOperation" message.
      *
@@ -905,6 +922,22 @@ export class SDSConnection {
         // connectionLog.debug(`runScriptOnServer`);
         return new Promise<string>((resolve, reject) => {
             this.send(Message.runScriptOnServer(sourceCode, scriptUrl)).then((response: Response) => {
+                const success = response.getBoolean(ParameterName.ReturnValue);
+                if (success) {
+                    const returnedString = response.getString(ParameterName.Parameter);
+                    resolve(returnedString);
+                } else {
+                    reject(new Error(`unable to execute script`));
+                }
+            }).catch((reason) => {
+                reject(reason);
+            });
+        });
+    }
+
+    public runScriptOnServerWithParam(sourceCode: string, params: string[]): Promise<string> {
+        return new Promise<string>((resolve, reject) => {
+            this.send(Message.runScriptOnServerWithParam(sourceCode, params)).then((response: Response) => {
                 const success = response.getBoolean(ParameterName.ReturnValue);
                 if (success) {
                     const returnedString = response.getString(ParameterName.Parameter);
